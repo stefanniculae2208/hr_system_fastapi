@@ -1,16 +1,23 @@
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+APP:
 
-alembic init alembic
-alembic upgrade head
-alembic revision --autogenerate -m ""
-alembic upgrade head
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install -r requirements.txt
 
+        alembic init alembic
+        alembic upgrade head
+        alembic revision --autogenerate -m ""
+        alembic upgrade head
+
+DOCKER:
+        sudo setenforce 0
+        docker-compose build
+        docker-compose up
 
 
 
 CURL:
+
     curl -X GET "http://localhost:8000/employees/"
 
     curl -X GET "http://localhost:8000/employees/1"

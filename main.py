@@ -248,6 +248,7 @@ def percentage_above_threshold(
     return response
 
 
+# UPLOAD JSON TO DATABASE
 @app.post("/upload_employees/")
 def upload_employees(file: UploadFile = File(...), db: Session = Depends(database.get_db)):
     try:
