@@ -166,61 +166,6 @@ def average_salary_by_experience(db: Session = Depends(database.get_db)):
 
 
 # READ ALL FILTERED
-# @app.get("/employees_filtered/", response_model=list[models.EmployeeBase])
-# def get_items(
-#     params: models.EmployeeQueryParams = Depends(),
-#     db: Session = Depends(database.get_db),
-# ):
-#     query = db.query(models.EmployeeDb)
-#     if params.first_name:
-#         query = query.filter(models.EmployeeDb.first_name.ilike(f"%{params.first_name}%"))
-#     if params.last_name:
-#         query = query.filter(models.EmployeeDb.last_name.ilike(f"%{params.last_name}%"))
-#     if params.email:
-#         query = query.filter(models.EmployeeDb.email.ilike(f"%{params.email}%"))
-#     if params.gender:
-#         query = query.filter(models.EmployeeDb.gender == params.gender)
-#     if params.industry:
-#         query = query.filter(models.EmployeeDb.industry.ilike(f"%{params.industry}%"))
-#     if params.min_salary is not None:
-#         query = query.filter(models.EmployeeDb.salary >= params.min_salary)
-#     if params.max_salary is not None:
-#         query = query.filter(models.EmployeeDb.salary <= params.max_salary)
-#     if params.min_years_of_experience is not None:
-#         query = query.filter(models.EmployeeDb.years_of_experience >= params.min_years_of_experience)
-#     if params.max_years_of_experience is not None:
-#         query = query.filter(models.EmployeeDb.years_of_experience <= params.max_years_of_experience)
-#     if params.date_of_birth_before:
-#         query = query.filter(models.EmployeeDb.date_of_birth <= params.date_of_birth_before)
-#     if params.date_of_birth_after:
-#         query = query.filter(models.EmployeeDb.date_of_birth >= params.date_of_birth_after)
-
-#     try:
-#         sort_column = getattr(models.EmployeeDb, params.sort_by, None)
-#         if sort_column:
-#             query = query.order_by(sort_column.desc() if params.sort_order.lower() == "desc" else sort_column.asc())
-#     except AttributeError:
-#         raise HTTPException(status_code=400, detail=f"Invalid sort_by column: {params.sort_by}")
-#     if params.page and params.page_size:
-#         offset = (params.page - 1) * params.page_size
-#         query = query.offset(offset).limit(params.page_size)
-
-#     list_employee_db = query.all()
-#     list_employee_pyd = [
-#         models.EmployeeBase(
-#             id=employee_db.id,
-#             first_name=employee_db.first_name,
-#             last_name=employee_db.last_name,
-#             email=employee_db.email,
-#             gender=employee_db.gender,
-#             date_of_birth=employee_db.date_of_birth,
-#             industry=employee_db.industry,
-#             salary=employee_db.salary,
-#             years_of_experience=employee_db.years_of_experience,
-#         )
-#         for employee_db in list_employee_db
-#     ]
-#     return list_employee_pyd
 @app.get("/employees_filtered/", response_model=list[models.EmployeeBase])
 def get_items(
     params: models.EmployeeQueryParams = Depends(),
