@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel
 from typing import Optional
@@ -10,7 +10,7 @@ Base = declarative_base()
 class EmployeeDb(Base):
     __tablename__ = 'employees'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     first_name = Column(String, index=True)
     last_name = Column(String, index=True)
     email = Column(String, index=True, nullable=True)
@@ -55,30 +55,3 @@ class EmployeeQueryParams(BaseModel):
     date_of_birth_before: Optional[date] = None
     date_of_birth_after: Optional[date] = None
 
-
-class AvgAgeByIndustry(BaseModel):
-    industry: str
-    average_age: float
-
-
-class AvgSalaryByIndustry(BaseModel):
-    industry: str
-    average_salary: float
-
-
-class AvgSalaryByExperience(BaseModel):
-    years_of_experience: float
-    average_salary: float
-
-
-class GenderDistribution(BaseModel):
-    industry: str
-    gender: str
-    percentage: float
-
-
-class PercentageAboveThreshold(BaseModel):
-    industry: str
-    total_employees: int
-    above_threshold: int
-    percentage_above_threshold: float

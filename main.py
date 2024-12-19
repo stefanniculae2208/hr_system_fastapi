@@ -1,8 +1,10 @@
 from src import models, database, utils
 import pandas as pd
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
 from typing import List, Optional
 import json
 
@@ -30,20 +32,34 @@ def get_employee(employee_id: int, db: Session = Depends(database.get_db)):
 # CREATE
 @app.post("/employees/")
 def create_item(employee_pyd: models.EmployeeBase, db: Session = Depends(database.get_db)):
-    employee_db = models.EmployeeDb(
-        first_name=employee_pyd.first_name,
-        last_name=employee_pyd.last_name,
-        email=employee_pyd.email,
-        gender=employee_pyd.gender,
-        date_of_birth=employee_pyd.date_of_birth,
-        industry=employee_pyd.industry,
-        salary=employee_pyd.salary,
-        years_of_experience=employee_pyd.years_of_experience,
-    )
-    db.add(employee_db)
-    db.commit()
-    db.refresh(employee_db)
-    return {"message": "Employee created successfully"}
+    try:
+        employee_db = models.EmployeeDb(
+            first_name=employee_pyd.first_name,
+            last_name=employee_pyd.last_name,
+            email=employee_pyd.email,
+            gender=employee_pyd.gender,
+            date_of_birth=employee_pyd.date_of_birth,
+            industry=employee_pyd.industry,
+            salary=employee_pyd.salary,
+            years_of_experience=employee_pyd.years_of_experience,
+        )
+        db.add(employee_db)
+        db.commit()
+        db.refresh(employee_db)
+        return {"message": "Employee created successfully"}
+
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Integrity Error: {e}",
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error: {e}",
+        )
 
 
 # DELETE
@@ -69,6 +85,7 @@ def update_item(employee_id: int, updated_item: models.EmployeeUpdate, db: Sessi
     db.commit()
     db.refresh(employee_db)
     return models.EmployeeBase(
+        id=employee_db.id,
         first_name=employee_db.first_name,
         last_name=employee_db.last_name,
         email=employee_db.email,
@@ -102,7 +119,7 @@ def get_items(db: Session = Depends(database.get_db)):
 
 
 # AGE BY INDUSTRY
-@app.get("/average_age_by_industry", response_model=List[models.AvgAgeByIndustry])
+@app.get("/average_age_by_industry")
 def average_age_by_industry(db: Session = Depends(database.get_db)):
     list_employee_db = db.query(
         models.EmployeeDb.id,
@@ -112,14 +129,13 @@ def average_age_by_industry(db: Session = Depends(database.get_db)):
     df = pd.DataFrame(list_employee_db, columns=["id", "industry", "date_of_birth"])
     df['age'] = df['date_of_birth'].apply(utils.calculate_age)
     avg_age_by_industry = df.groupby('industry')['age'].mean().reset_index()
-    avg_age_by_industry.rename(columns={'ag   # Query to fetch relevant dataate_of_birth,e': 'average_age'}, inplace=True)
+    avg_age_by_industry.rename(columns={'age': 'average_age'}, inplace=True)
     result = avg_age_by_industry.to_dict(orient="records")
-    response = [models.AvgAgeByIndustry(**item) for item in result]
-    return response
+    return result
 
 
 # SALARY BY INDUSTRY
-@app.get("/average_salary_by_industry", response_model=List[models.AvgSalaryByIndustry])
+@app.get("/average_salary_by_industry")
 def average_salary_by_industry(db: Session = Depends(database.get_db)):
     list_employee_db = db.query(
         models.EmployeeDb.id,
@@ -130,12 +146,11 @@ def average_salary_by_industry(db: Session = Depends(database.get_db)):
     avg_age_by_industry = df.groupby('industry')['salary'].mean().reset_index()
     avg_age_by_industry.rename(columns={'salary': 'average_salary'}, inplace=True)
     result = avg_age_by_industry.to_dict(orient="records")
-    response = [models.AvgSalaryByIndustry(**item) for item in result]
-    return response
+    return result
 
 
-# SALARY BY INDUSTRY
-@app.get("/average_salary_by_experience", response_model=List[models.AvgSalaryByExperience])
+# SALARY BY EXPERIENCE
+@app.get("/average_salary_by_experience")
 def average_salary_by_experience(db: Session = Depends(database.get_db)):
     list_employee_db = db.query(
         models.EmployeeDb.id,
@@ -147,39 +162,89 @@ def average_salary_by_experience(db: Session = Depends(database.get_db)):
     avg_age_by_industry = df.groupby('years_of_experience')['salary'].mean().reset_index()
     avg_age_by_industry.rename(columns={'salary': 'average_salary'}, inplace=True)
     result = avg_age_by_industry.to_dict(orient="records")
-    response = [models.AvgSalaryByExperience(**item) for item in result]
-    return response
+    return result
 
 
 # READ ALL FILTERED
+# @app.get("/employees_filtered/", response_model=list[models.EmployeeBase])
+# def get_items(
+#     params: models.EmployeeQueryParams = Depends(),
+#     db: Session = Depends(database.get_db),
+# ):
+#     query = db.query(models.EmployeeDb)
+#     if params.first_name:
+#         query = query.filter(models.EmployeeDb.first_name.ilike(f"%{params.first_name}%"))
+#     if params.last_name:
+#         query = query.filter(models.EmployeeDb.last_name.ilike(f"%{params.last_name}%"))
+#     if params.email:
+#         query = query.filter(models.EmployeeDb.email.ilike(f"%{params.email}%"))
+#     if params.gender:
+#         query = query.filter(models.EmployeeDb.gender == params.gender)
+#     if params.industry:
+#         query = query.filter(models.EmployeeDb.industry.ilike(f"%{params.industry}%"))
+#     if params.min_salary is not None:
+#         query = query.filter(models.EmployeeDb.salary >= params.min_salary)
+#     if params.max_salary is not None:
+#         query = query.filter(models.EmployeeDb.salary <= params.max_salary)
+#     if params.min_years_of_experience is not None:
+#         query = query.filter(models.EmployeeDb.years_of_experience >= params.min_years_of_experience)
+#     if params.max_years_of_experience is not None:
+#         query = query.filter(models.EmployeeDb.years_of_experience <= params.max_years_of_experience)
+#     if params.date_of_birth_before:
+#         query = query.filter(models.EmployeeDb.date_of_birth <= params.date_of_birth_before)
+#     if params.date_of_birth_after:
+#         query = query.filter(models.EmployeeDb.date_of_birth >= params.date_of_birth_after)
+
+#     try:
+#         sort_column = getattr(models.EmployeeDb, params.sort_by, None)
+#         if sort_column:
+#             query = query.order_by(sort_column.desc() if params.sort_order.lower() == "desc" else sort_column.asc())
+#     except AttributeError:
+#         raise HTTPException(status_code=400, detail=f"Invalid sort_by column: {params.sort_by}")
+#     if params.page and params.page_size:
+#         offset = (params.page - 1) * params.page_size
+#         query = query.offset(offset).limit(params.page_size)
+
+#     list_employee_db = query.all()
+#     list_employee_pyd = [
+#         models.EmployeeBase(
+#             id=employee_db.id,
+#             first_name=employee_db.first_name,
+#             last_name=employee_db.last_name,
+#             email=employee_db.email,
+#             gender=employee_db.gender,
+#             date_of_birth=employee_db.date_of_birth,
+#             industry=employee_db.industry,
+#             salary=employee_db.salary,
+#             years_of_experience=employee_db.years_of_experience,
+#         )
+#         for employee_db in list_employee_db
+#     ]
+#     return list_employee_pyd
 @app.get("/employees_filtered/", response_model=list[models.EmployeeBase])
 def get_items(
     params: models.EmployeeQueryParams = Depends(),
     db: Session = Depends(database.get_db),
 ):
     query = db.query(models.EmployeeDb)
-    if params.first_name:
-        query = query.filter(models.EmployeeDb.first_name.ilike(f"%{params.first_name}%"))
-    if params.last_name:
-        query = query.filter(models.EmployeeDb.last_name.ilike(f"%{params.last_name}%"))
-    if params.email:
-        query = query.filter(models.EmployeeDb.email.ilike(f"%{params.email}%"))
-    if params.gender:
-        query = query.filter(models.EmployeeDb.gender == params.gender)
-    if params.industry:
-        query = query.filter(models.EmployeeDb.industry.ilike(f"%{params.industry}%"))
-    if params.min_salary is not None:
-        query = query.filter(models.EmployeeDb.salary >= params.min_salary)
-    if params.max_salary is not None:
-        query = query.filter(models.EmployeeDb.salary <= params.max_salary)
-    if params.min_years_of_experience is not None:
-        query = query.filter(models.EmployeeDb.years_of_experience >= params.min_years_of_experience)
-    if params.max_years_of_experience is not None:
-        query = query.filter(models.EmployeeDb.years_of_experience <= params.max_years_of_experience)
-    if params.date_of_birth_before:
-        query = query.filter(models.EmployeeDb.date_of_birth <= params.date_of_birth_before)
-    if params.date_of_birth_after:
-        query = query.filter(models.EmployeeDb.date_of_birth >= params.date_of_birth_after)
+
+    filters = {
+        "first_name": lambda value: models.EmployeeDb.first_name.ilike(f"%{value}%"),
+        "last_name": lambda value: models.EmployeeDb.last_name.ilike(f"%{value}%"),
+        "email": lambda value: models.EmployeeDb.email.ilike(f"%{value}%"),
+        "gender": lambda value: models.EmployeeDb.gender == value,
+        "industry": lambda value: models.EmployeeDb.industry.ilike(f"%{value}%"),
+        "min_salary": lambda value: models.EmployeeDb.salary >= value,
+        "max_salary": lambda value: models.EmployeeDb.salary <= value,
+        "min_years_of_experience": lambda value: models.EmployeeDb.years_of_experience >= value,
+        "max_years_of_experience": lambda value: models.EmployeeDb.years_of_experience <= value,
+        "date_of_birth_before": lambda value: models.EmployeeDb.date_of_birth <= value,
+        "date_of_birth_after": lambda value: models.EmployeeDb.date_of_birth >= value,
+    }
+    for param, filter_fn in filters.items():
+        value = getattr(params, param, None)
+        if value is not None:
+            query = query.filter(filter_fn(value))
 
     try:
         sort_column = getattr(models.EmployeeDb, params.sort_by, None)
@@ -187,6 +252,7 @@ def get_items(
             query = query.order_by(sort_column.desc() if params.sort_order.lower() == "desc" else sort_column.asc())
     except AttributeError:
         raise HTTPException(status_code=400, detail=f"Invalid sort_by column: {params.sort_by}")
+
     if params.page and params.page_size:
         offset = (params.page - 1) * params.page_size
         query = query.offset(offset).limit(params.page_size)
@@ -210,7 +276,7 @@ def get_items(
 
 
 # GENDER DISTRIBUTION PER INDUSTRY
-@app.get("/gender_distribution_per_industry", response_model=List[models.GenderDistribution])
+@app.get("/gender_distribution_per_industry")
 def gender_distribution_per_industry(db: Session = Depends(database.get_db)):
     list_employee_db = db.query(
         models.EmployeeDb.id,
@@ -223,12 +289,11 @@ def gender_distribution_per_industry(db: Session = Depends(database.get_db)):
     merged_df = gender_distribution.merge(total_by_industry, on="industry")
     merged_df["percentage"] = (merged_df["gender_count"] / merged_df["total_employees"]) * 100
     result = merged_df.to_dict(orient="records")
-    response = [models.GenderDistribution(**item) for item in result]
-    return response
+    return result
 
 
 # PERCENTAGE EMPLOYEES ABOVE A THRESHOLD
-@app.get("/percentage_above_threshold", response_model=List[models.PercentageAboveThreshold])
+@app.get("/percentage_above_threshold")
 def percentage_above_threshold(
     salary_threshold: float = Query(..., description="Salary threshold to calculate the percentage"),
     db: Session = Depends(database.get_db)
@@ -244,37 +309,32 @@ def percentage_above_threshold(
     merged_df = above_threshold.merge(total_by_industry, on="industry", how="right").fillna(0)
     merged_df["percentage_above_threshold"] = (merged_df["above_threshold"] / merged_df["total_employees"]) * 100
     result = merged_df.to_dict(orient="records")
-    response = [models.PercentageAboveThreshold(**item) for item in result]
-    return response
+    return result
 
 
 # UPLOAD JSON TO DATABASE
 @app.post("/upload_employees/")
 def upload_employees(file: UploadFile = File(...), db: Session = Depends(database.get_db)):
     try:
-        # Read the file and parse JSON content
         content = file.file.read()
         employees = json.loads(content)
-        
-        # Convert and validate JSON data
+
+        max_id_in_file = 0
         for employee_data in employees:
             try:
-                # Convert date_of_birth from string to a date object
                 employee_data['date_of_birth'] = datetime.strptime(employee_data['date_of_birth'], "%d/%m/%Y").date()
-                
-                # Create an EmployeeDb object
+                #  If the added json file contains an ID column then the database autoincrement needs to be
+                # manually set to the highest value of ID in order to avoid ID overlap (since it's the unique key).
+                if 'id' in employee_data:
+                    max_id_in_file = max(max_id_in_file, employee_data['id'])
                 new_employee = models.EmployeeDb(**employee_data)
-                
-                # Add to session
-                db.add(new_employee)
-            
+                db.add(new_employee)          
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error parsing employee data: {str(e)}")
         
-        # Commit the session
         db.commit()
-        
-        return {"status": "success", "message": "Employees added successfully"}
-    
+        if max_id_in_file > 0:
+            db.execute(text(f"SELECT setval(pg_get_serial_sequence('employees', 'id'), {max_id_in_file}, true)")) 
+        return {"status": "success", "message": "Employees added successfully"}  
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")

@@ -1,19 +1,23 @@
-APP:
-
-        python -m venv .venv
-        source .venv/bin/activate
-        pip install -r requirements.txt
+DB:
 
         alembic init alembic
         alembic upgrade head
         alembic revision --autogenerate -m ""
         alembic upgrade head
 
+
+APP:
+
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install -r requirements.txt
+
+
 DOCKER:
+
         sudo setenforce 0
         docker-compose build
         docker-compose up
-
 
 
 CURL:
@@ -48,7 +52,7 @@ CURL:
     'http://127.0.0.1:8000/average_age_by_industry' \
     -H 'accept: application/json'
 
-    curl -X 'GET'   'http://127.0.0.1:8000/average_age_by_industry'   -H 'accept: application/json'
+    curl -X 'GET'   'http://127.0.0.1:8000/average_salary_by_industry'   -H 'accept: application/json'
 
     curl -X 'GET'   'http://127.0.0.1:8000/average_salary_by_experience'   -H 'accept: application/json'
 
