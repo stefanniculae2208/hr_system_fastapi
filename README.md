@@ -1,26 +1,36 @@
 Dependencies:
+
         python
         postgresql
 
 
 General:
+
         python -m venv .venv
         source .venv/bin/activate
         pip install -r requirements.txt
         alembic init alembic
 
         Setup .env:
-                # Docker:
+
+                Must replace user_name, user_password and db_name in the env file with one from your postgres.
+
+                # Run from Docker:
                 POSTGRES_USER=<user_name>
                 POSTGRES_PASSWORD=<user_password>
                 POSTGRES_DB=<db_name>
                 DATABASE_URL=postgresql://<user_name>:<user_password>@dbfastapi:5432/<db_name> OR
 
-                # App:
+                # Run from App:
                 POSTGRES_USER=<user_name>
                 POSTGRES_PASSWORD=<user_password>
                 POSTGRES_DB=<db_name> 
                 DATABASE_URL=postgresql://<user_name>:<user_password>@localhost/<db_name>
+
+
+TEST:
+        
+        pytest
 
 
 APP:
@@ -34,6 +44,7 @@ APP:
 
 DOCKER:
 
+        # Disable SELinux if needed. It was stopping me from running this on my PC.
         sudo setenforce 0
         docker-compose build
         docker-compose up
@@ -42,6 +53,10 @@ DOCKER:
         alembic revision --autogenerate -m ""
         alembic upgrade head
         exit
+        curl -X POST "http://127.0.0.1:8000/upload_employees/" \
+        -H "accept: application/json" \
+        -H "Content-Type: multipart/form-data" \
+        -F "file=@data/MOCK_DATA.json"
         
 
 CURL:
