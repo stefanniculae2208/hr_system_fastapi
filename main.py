@@ -1,4 +1,4 @@
-from src import models, database, utils
+from src import models, database, utils, statistics
 import pandas as pd
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, status
@@ -118,53 +118,6 @@ def get_items(db: Session = Depends(database.get_db)):
     return list_employee_pyd
 
 
-# AGE BY INDUSTRY
-@app.get("/average_age_by_industry")
-def average_age_by_industry(db: Session = Depends(database.get_db)):
-    list_employee_db = db.query(
-        models.EmployeeDb.id,
-        models.EmployeeDb.industry,
-        models.EmployeeDb.date_of_birth
-    ).all()
-    df = pd.DataFrame(list_employee_db, columns=["id", "industry", "date_of_birth"])
-    df['age'] = df['date_of_birth'].apply(utils.calculate_age)
-    avg_age_by_industry = df.groupby('industry')['age'].mean().reset_index()
-    avg_age_by_industry.rename(columns={'age': 'average_age'}, inplace=True)
-    result = avg_age_by_industry.to_dict(orient="records")
-    return result
-
-
-# SALARY BY INDUSTRY
-@app.get("/average_salary_by_industry")
-def average_salary_by_industry(db: Session = Depends(database.get_db)):
-    list_employee_db = db.query(
-        models.EmployeeDb.id,
-        models.EmployeeDb.industry,
-        models.EmployeeDb.salary   # Query to fetch relevant dataate_of_birth,
-    ).all()
-    df = pd.DataFrame(list_employee_db, columns=["id", "industry", "salary"])
-    avg_age_by_industry = df.groupby('industry')['salary'].mean().reset_index()
-    avg_age_by_industry.rename(columns={'salary': 'average_salary'}, inplace=True)
-    result = avg_age_by_industry.to_dict(orient="records")
-    return result
-
-
-# SALARY BY EXPERIENCE
-@app.get("/average_salary_by_experience")
-def average_salary_by_experience(db: Session = Depends(database.get_db)):
-    list_employee_db = db.query(
-        models.EmployeeDb.id,
-        models.EmployeeDb.years_of_experience,
-        models.EmployeeDb.salary
-    ).all()
-    df = pd.DataFrame(list_employee_db, columns=["id", "years_of_experience", "salary"])
-    df = df.dropna(subset=["years_of_experience"])
-    avg_age_by_industry = df.groupby('years_of_experience')['salary'].mean().reset_index()
-    avg_age_by_industry.rename(columns={'salary': 'average_salary'}, inplace=True)
-    result = avg_age_by_industry.to_dict(orient="records")
-    return result
-
-
 # READ ALL FILTERED
 @app.get("/employees_filtered/", response_model=list[models.EmployeeBase])
 def get_items(
@@ -220,41 +173,31 @@ def get_items(
     return list_employee_pyd
 
 
-# GENDER DISTRIBUTION PER INDUSTRY
-@app.get("/gender_distribution_per_industry")
-def gender_distribution_per_industry(db: Session = Depends(database.get_db)):
-    list_employee_db = db.query(
-        models.EmployeeDb.id,
-        models.EmployeeDb.gender,
-        models.EmployeeDb.industry
-    ).all()
-    df = pd.DataFrame(list_employee_db, columns=["id", "gender", "industry"])
-    total_by_industry = df.groupby("industry")["id"].count().reset_index().rename(columns={"id": "total_employees"})
-    gender_distribution = df.groupby(["industry", "gender"])["id"].count().reset_index().rename(columns={"id": "gender_count"})
-    merged_df = gender_distribution.merge(total_by_industry, on="industry")
-    merged_df["percentage"] = (merged_df["gender_count"] / merged_df["total_employees"]) * 100
-    result = merged_df.to_dict(orient="records")
-    return result
-
-
-# PERCENTAGE EMPLOYEES ABOVE A THRESHOLD
-@app.get("/percentage_above_threshold")
-def percentage_above_threshold(
-    salary_threshold: float = Query(..., description="Salary threshold to calculate the percentage"),
+# STATISTICS
+@app.get("/get_statistics")
+def get_statistics(
+    stat: str = Query(..., description="Statistic type to calculate"),
+    salary_threshold: float = Query(None, description="Salary threshold (only for percentage_above_threshold)"),
     db: Session = Depends(database.get_db)
 ):
-    list_employee_db = db.query(
-        models.EmployeeDb.id,
-        models.EmployeeDb.salary,
-        models.EmployeeDb.industry
-    ).all()
-    df = pd.DataFrame(list_employee_db, columns=["id", "salary", "industry"])
-    total_by_industry = df.groupby("industry")["id"].count().reset_index().rename(columns={"id": "total_employees"})
-    above_threshold = df[df["salary"] > salary_threshold].groupby("industry")["id"].count().reset_index().rename(columns={"id": "above_threshold"})
-    merged_df = above_threshold.merge(total_by_industry, on="industry", how="right").fillna(0)
-    merged_df["percentage_above_threshold"] = (merged_df["above_threshold"] / merged_df["total_employees"]) * 100
-    result = merged_df.to_dict(orient="records")
-    return result
+    # Mapping of stat types to functions
+    function_map = {
+        "average_age_by_industry": lambda: statistics.average_age_by_industry(db),
+        "average_salary_by_industry": lambda: statistics.average_salary_by_industry(db),
+        "average_salary_by_experience": lambda: statistics.average_salary_by_experience(db),
+        "gender_distribution_per_industry": lambda: statistics.gender_distribution_per_industry(db),
+        "percentage_above_threshold": lambda: statistics.percentage_above_threshold(salary_threshold=salary_threshold, db=db),
+    }
+
+    # Validate the stat parameter
+    if stat not in function_map:
+        raise HTTPException(status_code=400, detail=f"Invalid 'stat' value: {stat}")
+
+    # Call the appropriate function
+    try:
+        return function_map[stat]()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # UPLOAD JSON TO DATABASE

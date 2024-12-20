@@ -14,11 +14,11 @@ class EmployeeDb(Base):
     first_name = Column(String, index=True)
     last_name = Column(String, index=True)
     email = Column(String, index=True, nullable=True)
-    gender = Column(String, nullable=True)  # can be null
+    gender = Column(String, nullable=True)
     date_of_birth = Column(Date, nullable=True)
     industry = Column(String, nullable=True)
     salary = Column(Float, nullable=True)
-    years_of_experience = Column(Integer, nullable=True)  # optional
+    years_of_experience = Column(Integer, nullable=True)
 
 
 class EmployeeBase(BaseModel):

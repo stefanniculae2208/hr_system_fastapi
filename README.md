@@ -1,16 +1,35 @@
-DB:
+Dependencies:
+        python
+        postgresql
 
+
+General:
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install -r requirements.txt
         alembic init alembic
-        alembic upgrade head
-        alembic revision --autogenerate -m ""
-        alembic upgrade head
+
+        Setup .env:
+                # Docker:
+                POSTGRES_USER=<user_name>
+                POSTGRES_PASSWORD=<user_password>
+                POSTGRES_DB=<db_name>
+                DATABASE_URL=postgresql://<user_name>:<user_password>@dbfastapi:5432/<db_name> OR
+
+                # App:
+                POSTGRES_USER=<user_name>
+                POSTGRES_PASSWORD=<user_password>
+                POSTGRES_DB=<db_name> 
+                DATABASE_URL=postgresql://<user_name>:<user_password>@localhost/<db_name>
 
 
 APP:
 
-        python -m venv .venv
-        source .venv/bin/activate
+        alembic upgrade head
+        alembic revision --autogenerate -m ""
+        alembic upgrade head
         pip install -r requirements.txt
+        uvicorn main:app --reload
 
 
 DOCKER:
@@ -18,7 +37,12 @@ DOCKER:
         sudo setenforce 0
         docker-compose build
         docker-compose up
-
+        sudo docker exec -it fastapi_app /bin/bash
+        alembic upgrade head
+        alembic revision --autogenerate -m ""
+        alembic upgrade head
+        exit
+        
 
 CURL:
 
@@ -48,23 +72,17 @@ CURL:
 
     curl -X GET "http://localhost:8000/employees_filtered/?first_name=John" -H "accept: application/json"
 
-    curl -X 'GET' \
-    'http://127.0.0.1:8000/average_age_by_industry' \
-    -H 'accept: application/json'
+    curl -X GET "http://127.0.0.1:8000/api/hr_app/get_statistics?stat=average_age_by_industry" -H "accept: application/json"
 
-    curl -X 'GET'   'http://127.0.0.1:8000/average_salary_by_industry'   -H 'accept: application/json'
+    curl -X GET "http://127.0.0.1:8000/api/hr_app/get_statistics?stat=average_salary_by_industry" -H "accept: application/json"
 
-    curl -X 'GET'   'http://127.0.0.1:8000/average_salary_by_experience'   -H 'accept: application/json'
+    curl -X GET "http://127.0.0.1:8000/api/hr_app/get_statistics?stat=average_salary_by_experience" -H "accept: application/json"
 
-    curl -X 'GET' \
-    'http://127.0.0.1:8000/gender_distribution_per_industry' \
-    -H 'accept: application/json'
+    curl -X GET "http://127.0.0.1:8000/api/hr_app/get_statistics?stat=gender_distribution_per_industry" -H "accept: application/json"
 
-    curl -X 'GET' \
-    'http://127.0.0.1:8000/percentage_above_threshold?salary_threshold=50000' \
-    -H 'accept: application/json'
+    curl -X GET "http://127.0.0.1:8000/api/hr_app/get_statistics?stat=percentage_above_threshold&salary_threshold=50000" -H "accept: application/json"
 
     curl -X POST "http://127.0.0.1:8000/upload_employees/" \
     -H "accept: application/json" \
     -H "Content-Type: multipart/form-data" \
-    -F "file=@employees.json"
+    -F "file=@data/MOCK_DATA.json"

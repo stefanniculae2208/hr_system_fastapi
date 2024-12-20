@@ -35,7 +35,7 @@ def test_average_age_by_industry(mock_db_session):
         return 30 if dob == "1990-01-01" else 35
     from src import utils
     utils.calculate_age = mock_calculate_age
-    response = client.get("/average_age_by_industry")
+    response = client.get("/get_statistics?stat=average_age_by_industry")
     
     assert response.status_code == 200
     assert response.json() == [
@@ -52,7 +52,7 @@ def test_average_salary_by_industry(mock_db_session):
         (3, "HR", 60000),
         (4, "HR", 70000),
     ]
-    response = client.get("/average_salary_by_industry")
+    response = client.get("/get_statistics?stat=average_salary_by_industry")
     
     assert response.status_code == 200
     assert response.json() == [
@@ -69,7 +69,7 @@ def test_average_salary_by_experience(mock_db_session):
         (3, 5, 55000),
         (4, 15, 70000),
     ]
-    response = client.get("/average_salary_by_experience")
+    response = client.get("/get_statistics?stat=average_salary_by_experience")
 
     assert response.status_code == 200
     assert response.json() == [
@@ -89,7 +89,7 @@ def test_gender_distribution_per_industry(mock_db_session):
         (5, "Male", "HR"),
         (6, "Female", "Finance"),
     ]
-    response = client.get("/gender_distribution_per_industry")
+    response = client.get("/get_statistics?stat=gender_distribution_per_industry")
     
     assert response.status_code == 200
     assert response.json() == [
@@ -111,7 +111,7 @@ def test_percentage_above_threshold(mock_db_session):
         (5, 90000, "Finance"),
         (6, 80000, "Finance"),
     ]
-    response = client.get("/percentage_above_threshold?salary_threshold=65000")
+    response = client.get("/get_statistics?stat=percentage_above_threshold&salary_threshold=65000")
     
     assert response.status_code == 200
     assert response.json() == [
